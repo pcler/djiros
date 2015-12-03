@@ -3,7 +3,7 @@
  * @Version 0.2.1
  * @Author  Chris Liu
  * @Create  2015/11/02
- * @Modify  2015/11/24
+ * @Modify  2015/12/02
  ****************************************************************************/
 
 #include <pthread.h>
@@ -16,7 +16,7 @@
 #include <dji_sdk/AttitudeQuaternion.h>
 
 #include "dji_sdk_dji2mav/config.h"
-
+#include "dji_sdk_dji2mav/adapters/ROS/waypointAdapter.h"
 
 
 DJIDrone* drone;
@@ -99,34 +99,14 @@ void respondToMissionSetCurrent(uint16_t param) {
 
 
 
-void respondToTarget(const float mission[][7], uint16_t beginIdx, 
-        uint16_t endIdx) {
+void respondToTarget(const float mission[][7], uint16_t missionSize, 
+        const uint16_t cmd[]) {
 
-    dji_sdk::MissionWaypointTask task;
-    memset(&task, 0, sizeof(dji_sdk::MissionWaypointTask));
+    dji_sdk::MissionWaypointTask task = 
+            dji2mav::WaypointAdapter::convert(drone, mission, missionSize, 
+            cmd, 1); //execute 1 time
 
-    task.mission_exec_times = 0x01;
-    task.yaw_mode = 0x03;
-
-    ROS_INFO("beginIdx %d, endIdx %d", beginIdx, endIdx);
-    for(int i = beginIdx; i < endIdx; ++i) {
-        dji_sdk::MissionWaypoint wp;
-        memset(&wp, 0, sizeof(dji_sdk::MissionWaypoint));
-
-        wp.latitude = mission[i][4];
-        wp.longitude = mission[i][5];
-        wp.altitude = mission[i][6];
-        wp.target_yaw = (int16_t)mission[i][3];
-        wp.has_action = 0x01; //true or false
-        wp.action_time_limit = 0xffff;
-
-        wp.waypoint_action.action_repeat = 0x00;
-        wp.waypoint_action.command_list[0] = 0x00;
-        wp.waypoint_action.command_parameter[0] = (int16_t) mission[i][0];
-
-        task.mission_waypoint.push_back(wp);
-    }
-    ROS_INFO("Size of the wpl: %d", task.mission_waypoint.size());
+    ROS_INFO_STREAM("Task: " << task << std::endl);
 
     /**
      * Currently this is executed in main thread, So don't wait for server or 

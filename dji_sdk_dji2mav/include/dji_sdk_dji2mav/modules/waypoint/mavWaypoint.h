@@ -3,7 +3,7 @@
  * @Version   0.2.1
  * @Author    Chris Liu
  * @Created   2015/11/18
- * @Modified  2015/11/24
+ * @Modified  2015/12/02
  *****************************************************************************/
 
 #ifndef _MAV2DJI_MAVWAYPOINT_H_
@@ -440,8 +440,8 @@ printf("Send request %u, %u, %u\n", m_reqMsg.target_system, m_reqMsg.target_comp
 
                     if(NULL != m_targetRsp) {
                         m_targetRsp( m_wpl.getWaypointList(), 
-                                m_setCurrMsg.seq, 
-                                m_wpl.getListSize() );//TODO
+                                m_wpl.getListSize(), 
+                                m_wpl.getCmdList() );//TODO
                     }
                     mavlink_msg_mission_current_pack( m_hdlr->getSysid(), 
                             MAV_COMP_ID_MISSIONPLANNER, &m_sendMsg, 
@@ -503,7 +503,7 @@ printf("Send request %u, %u, %u\n", m_reqMsg.target_system, m_reqMsg.target_comp
             }
 
 
-            inline void setTargetRsp( void (*func)(const float[][7], uint16_t, uint16_t) ) {
+            inline void setTargetRsp( void (*func)(const float[][7], uint16_t, const uint16_t[]) ) {
                 m_targetRsp = func;
             }
 
@@ -622,7 +622,7 @@ printf("Send request %u, %u, %u\n", m_reqMsg.target_system, m_reqMsg.target_comp
             void (*m_missionItemRsp)(uint16_t);
             void (*m_missionClearAllRsp)();
             void (*m_missionSetCurrentRsp)(uint16_t);
-            void (*m_targetRsp)(const float[][7], uint16_t, uint16_t);
+            void (*m_targetRsp)(const float[][7], uint16_t, const uint16_t[]);
 
 
     };

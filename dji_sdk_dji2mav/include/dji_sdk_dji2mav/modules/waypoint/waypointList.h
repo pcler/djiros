@@ -3,7 +3,7 @@
  * @Version   0.2.1
  * @Author    Chris Liu
  * @Created   2015/11/18
- * @Modified  2015/11/24
+ * @Modified  2015/12/02
  *****************************************************************************/
 
 #ifndef _DJI2MAV_WAYPOINTLIST_H_
@@ -13,6 +13,8 @@
 #include <iostream>
 #include <new>
 #include <stdio.h>
+
+#define MAX_WP_LIST_SIZE 128
 
 namespace dji2mav {
 
@@ -30,6 +32,11 @@ namespace dji2mav {
 
             inline const float ( *getWaypointList() )[7] {
                 return m_wpList;
+            }
+
+
+            inline const uint16_t* getCmdList() {
+                return m_cmd;
             }
 
 
@@ -242,8 +249,8 @@ namespace dji2mav {
 
 
         private:
-            float m_wpList[100][7];
-            uint16_t m_cmd[100];
+            float m_wpList[MAX_WP_LIST_SIZE][7];
+            uint16_t m_cmd[MAX_WP_LIST_SIZE];
             uint16_t m_listSize;
             int m_targetIdx;
 
