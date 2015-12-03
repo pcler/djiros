@@ -480,7 +480,7 @@ typedef struct
 	unsigned char gimbal_pitch_mode;
 	fp64	hp_lati;
 	fp64	hp_longti;
-	fp64	hp_altitude;
+	fp32	hp_altitude;
 	unsigned char reserve[16];
 }cmd_mission_wp_task_info_comm_t;
 
@@ -492,8 +492,8 @@ typedef struct
 {
 	unsigned char action_num 	:4;
 	unsigned char action_rpt	:4;
-	unsigned char command_list [15];
-	int16_t command_param[15];
+	unsigned char command_list [16];
+	int16_t command_param[16];
 }cmd_mission_wp_action_comm_t;
 
 /*
@@ -592,8 +592,46 @@ typedef struct
 	uint8_t data_4;
 	uint8_t data_5;
 }cmd_mission_common_data_t;
-	
 
+typedef struct 
+{
+	uint8_t ack;
+	uint8_t index;
+}cmd_mission_wp_upload_ack_t;
+
+typedef struct
+{
+	uint8_t ack;
+	cmd_mission_wp_task_info_comm_t wp_task;
+}cmd_mission_wp_task_download_ack_t;
+
+typedef struct
+{
+	uint8_t ack;
+	uint8_t index;
+	cmd_mission_wp_waypoint_info_comm_t wp_info;
+}cmd_mission_wp_info_download_ack_t;
+
+typedef struct
+{
+	uint8_t ack;
+	fp32 idle_vel;
+}cmd_mission_wp_velocity_ack_t;
+
+	
+typedef struct
+{
+	uint8_t ack;
+	fp32 max_radius;
+}cmd_mission_hp_start_ack_t;
+
+typedef struct
+{
+	uint8_t ack;
+	cmd_mission_hotpoint_setting_t hotpoint_data;
+}cmd_mission_hp_download_ack_t;
+
+	
 #pragma  pack()
 
 typedef std::function<void(unsigned short)> Command_Result_Notify;
