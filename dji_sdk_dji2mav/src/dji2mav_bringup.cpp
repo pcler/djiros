@@ -1,9 +1,9 @@
 /****************************************************************************
- * @Brief   A bringup node for dji2mav. Using dji2mav interface v1.x
+ * @Brief   A bringup node for dji2mav. Using dji2mav interface v0.2.x
  * @Version 0.2.1
  * @Author  Chris Liu
  * @Create  2015/11/02
- * @Modify  2015/11/24
+ * @Modify  2015/12/04
  ****************************************************************************/
 
 #include <pthread.h>
@@ -107,6 +107,8 @@ void respondToTarget(const float mission[][7], uint16_t beginIdx,
 
     task.mission_exec_times = 0x01;
     task.yaw_mode = 0x03;
+    task.velocity_range = 10.0; //must be set
+    task.idle_velocity = 3.0; //must be set
 
     ROS_INFO("beginIdx %d, endIdx %d", beginIdx, endIdx);
     for(int i = beginIdx; i < endIdx; ++i) {
@@ -120,9 +122,9 @@ void respondToTarget(const float mission[][7], uint16_t beginIdx,
         wp.has_action = 0x01; //true or false
         wp.action_time_limit = 0xffff;
 
-        wp.waypoint_action.action_repeat = 0x00;
+        wp.waypoint_action.action_repeat = 0x01; //times!
         wp.waypoint_action.command_list[0] = 0x00;
-        wp.waypoint_action.command_parameter[0] = (int16_t) mission[i][0];
+        wp.waypoint_action.command_parameter[0] = (int16_t) (mission[i][0] * 1000.0);
 
         task.mission_waypoint.push_back(wp);
     }
