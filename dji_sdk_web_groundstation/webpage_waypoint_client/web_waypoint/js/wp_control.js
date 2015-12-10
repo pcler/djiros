@@ -1,5 +1,6 @@
 
 var dji_home= new BMap.Point(113.958004, 22.542494);
+var lastMkr = new BMap.Marker(dji_home);
 
 $( document ).ready(function() {
 	my_socket = new WebSocket("ws://localhost:19871");
@@ -14,18 +15,33 @@ $( document ).ready(function() {
 	// create planner
 	my_planner = new Planner(map);
 	my_planner.reset();
+        // create global position displayer
+        var icon = new BMap.Icon('http://icons.iconarchive.com/icons/custom-icon-design/flatastic-6/16/Circle-icon.png', new BMap.Size(16,16), {
+            anchor : new BMap.Size(8, 8)
+        });
+        // update global position per second
+        var globalPosTimer = setInterval(function() {
+            map.removeOverlay(lastMkr);
+            var globalPos = my_Communicator.getGlobalPos();
+            var mkr = new BMap.Marker(new BMap.Point(globalPos[1], globalPos[0]), {
+                icon : icon
+            });
+            map.addOverlay(mkr);
+            lastMkr = mkr;
+        }, 1000);
 
 	//bind events to control panel wadgets
 	$( "#start-plan" ).bind( "click", function() {
 
 		//my_Communicator.getGlobalPosition();
-		console.log('Home position: ' + home_lon + ', ' + home_lat);
-		if(home_lon == 0 || home_lat == 0){
+                var globalPos = my_Communicator.getGlobalPos();
+		console.log('Home position: ' + globalPos[0] + ', ' + globalPos[1]);
+		if(globalPos[0] == 0 || globalPos[1] == 0){
 			alert("Home Location Not Recorded!");
 			return;
 		}
 			
-		var drone_home = new BMap.Point(home_lon, home_lat);
+		var drone_home = new BMap.Point(globalPos[1], globalPos[0]);
 		map.setCenter(drone_home);
 
 		if (my_planner.isStandby())
@@ -67,6 +83,21 @@ $( document ).ready(function() {
 			alert("Drone not Connected!");
 		else
             my_Communicator.startWayline();
+
+	});
+
+	$("#pause-mission").bind("click",function() {
+		if (typeof(my_Communicator) == 'undefined')
+			alert("Drone not Connected!");
+		else
+            my_Communicator.pauseWayline();
+
+	});
+	$("#resume-mission").bind("click",function() {
+		if (typeof(my_Communicator) == 'undefined')
+			alert("Drone not Connected!");
+		else
+            my_Communicator.continueWayline();
 
 	});
 
