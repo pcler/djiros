@@ -14,6 +14,7 @@
 #include "modules/heartbeat/mavHeartbeat.h"
 #include "modules/sensors/mavSensors.h"
 #include "modules/waypoint/mavWaypoint.h"
+#include "modules/hotpoint/mavHotpoint.h"
 
 #include <mavlink/common/mavlink.h>
 #include <iostream>
@@ -89,6 +90,7 @@ namespace dji2mav{
                   m_moduleHb = MavHeartbeat::getInstance();
                   m_moduleSs = MavSensors::getInstance();
                   m_moduleWp = MavWaypoint::getInstance();
+                  m_moduleHp = new MavHotpoint;
             }
 
 
@@ -107,32 +109,39 @@ namespace dji2mav{
                                     &m_recvMsgList[gcsIdx]);
                             break;
                         case MAVLINK_MSG_ID_MISSION_REQUEST_LIST:
-                            m_moduleWp->reactToMissionRequestList(gcsIdx, 
-                                    &m_recvMsgList[gcsIdx]);
+                            //m_moduleWp->reactToMissionRequestList(gcsIdx, 
+                            //        &m_recvMsgList[gcsIdx]);
+                            m_moduleHp->pushMsg(m_recvMsgList[gcsIdx]);
                             break;
                         case MAVLINK_MSG_ID_MISSION_REQUEST:
-                            m_moduleWp->reactToMissionRequest(gcsIdx, 
-                                    &m_recvMsgList[gcsIdx]);
+                            //m_moduleWp->reactToMissionRequest(gcsIdx, 
+                            //        &m_recvMsgList[gcsIdx]);
+                            m_moduleHp->pushMsg(m_recvMsgList[gcsIdx]);
                             break;
                         case MAVLINK_MSG_ID_MISSION_ACK:
-                            m_moduleWp->reactToMissionAck(gcsIdx, 
-                                    &m_recvMsgList[gcsIdx]);
+                            //m_moduleWp->reactToMissionAck(gcsIdx, 
+                            //       &m_recvMsgList[gcsIdx]);
+                            m_moduleHp->pushMsg(m_recvMsgList[gcsIdx]);
                             break;
                         case MAVLINK_MSG_ID_MISSION_COUNT:
-                            m_moduleWp->reactToMissionCount(gcsIdx, 
-                                    &m_recvMsgList[gcsIdx]);
+                            //m_moduleWp->reactToMissionCount(gcsIdx, 
+                            //        &m_recvMsgList[gcsIdx]);
+                            m_moduleHp->pushMsg(m_recvMsgList[gcsIdx]);
                             break;
                         case MAVLINK_MSG_ID_MISSION_ITEM:
-                            m_moduleWp->reactToMissionItem(gcsIdx, 
-                                    &m_recvMsgList[gcsIdx]);
+                            //m_moduleWp->reactToMissionItem(gcsIdx, 
+                            //        &m_recvMsgList[gcsIdx]);
+                            m_moduleHp->pushMsg(m_recvMsgList[gcsIdx]);
                             break;
                         case MAVLINK_MSG_ID_MISSION_CLEAR_ALL:
-                            m_moduleWp->reactToMissionItem(gcsIdx, 
-                                    &m_recvMsgList[gcsIdx]);
+                            //m_moduleWp->reactToMissionClearAll(gcsIdx, 
+                            //        &m_recvMsgList[gcsIdx]);
+                            m_moduleHp->pushMsg(m_recvMsgList[gcsIdx]);
                             break;
                         case MAVLINK_MSG_ID_MISSION_SET_CURRENT:
-                            m_moduleWp->reactToMissionItem(gcsIdx, 
-                                    &m_recvMsgList[gcsIdx]);
+                            //m_moduleWp->reactToMissionSetCurrent(gcsIdx, 
+                            //        &m_recvMsgList[gcsIdx]);
+                            m_moduleHp->pushMsg(m_recvMsgList[gcsIdx]);
                             break;
                         default:
                             printf("Undistributed message with msgid %u!\n", 
@@ -160,6 +169,7 @@ namespace dji2mav{
             }
 
 
+            MavHotpoint* m_moduleHp;//TODO -------------------------------------------------------------
         private:
             MavDistributor() {
                 m_listSize = 0;

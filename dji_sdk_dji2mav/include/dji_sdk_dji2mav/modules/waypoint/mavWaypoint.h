@@ -315,10 +315,6 @@ namespace dji2mav{
                 switch(m_status) {
                     case loaded:
                     case executing:
-                        //TODO: Wrong designed in GCS of Win32-Stable-V2.7.1
-                        reactToMissionSetCurrent(gcsIdx, recvMsgPtr);
-                        m_status = loaded;
-                        return;
                     case idle:
                     case uploading:
                     case paused:
@@ -574,6 +570,8 @@ printf("Send request %u, %u, %u\n", m_reqMsg.target_system, m_reqMsg.target_comp
                 setMissionAckRsp(NULL);
                 setMissionCountRsp(NULL);
                 setMissionItemRsp(NULL);
+                setMissionClearAllRsp(NULL);
+                setMissionSetCurrentRsp(NULL);
 
                 printf("Succeed to construct Waypoint module\n");
 

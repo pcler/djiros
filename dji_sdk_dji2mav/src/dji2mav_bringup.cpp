@@ -156,6 +156,43 @@ void respondToTarget(const float mission[][7], uint16_t beginIdx,
 }
 
 
+void respondToHpTarget(const float hp[], uint16_t size, uint16_t cmd) {
+    dji_sdk::MissionHotpointTask task;
+    memset(&task, 0, sizeof(dji_sdk::MissionHotpointTask));
+
+    task.latitude = hp[4];
+    task.longitude = hp[5];
+    task.altitude = hp[6];
+
+    if(hp[2] < 0)
+        task.is_clockwise = 0x00;
+    else
+        task.is_clockwise = 0x01;
+    task.radius = abs(hp[2]);
+
+    //task.? = hp[3];//unused
+
+    task.angular_speed = 5;
+    task.start_point = 0x04;//frome current position to the nearest point
+    task.yaw_mode = 0x01;//point to the center of the circle
+
+    switch(cmd) {
+        case 17:
+            break;
+        case 18:
+            //turns
+            break;
+        case 19:
+            //time
+            break;
+    }
+
+    drone->mission_hotpoint_upload(task);
+    ros::Duration(1.0).sleep();
+    drone->mission_start();
+}
+
+
 
 int main(int argc, char* argv[]) {
 
@@ -213,6 +250,9 @@ int main(int argc, char* argv[]) {
     dji2mav::MavWaypoint::getInstance()->setMissionClearAllRsp(respondToMissionClearAll);
     dji2mav::MavWaypoint::getInstance()->setMissionSetCurrentRsp(respondToMissionSetCurrent);
     dji2mav::MavWaypoint::getInstance()->setTargetRsp(respondToTarget);
+
+    dji2mav::MavDistributor::getInstance()->m_moduleHp->run();
+    dji2mav::MavDistributor::getInstance()->m_moduleHp->setTargetRsp(respondToHpTarget);
 
     while( ros::ok() ) {
         /* Do distribution in loop */
