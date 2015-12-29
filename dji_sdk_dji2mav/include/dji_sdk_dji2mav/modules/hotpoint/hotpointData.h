@@ -1,9 +1,9 @@
 /*****************************************************************************
  * @Brief     Data class for hotpoint. Mav-free and ROS-free
- * @Version   0.2.2
+ * @Version   0.3.0
  * @Author    Chris Liu
  * @Created   2015/12/14
- * @Modified  2015/12/14
+ * @Modified  2015/12/25
  *****************************************************************************/
 
 #ifndef _DJI2MAV_HOTPOINTDATA_H_
@@ -65,11 +65,11 @@ namespace dji2mav {
 
 
             void display() {
-                printf("Display the full hotpoint:\n");
-                printf("param1: %f, param2: %f, param3: %f, param4: %f, "
-                        "lat: %f, lon: %f, alt: %f\n", m_data[0], m_data[1], 
+                DJI2MAV_INFO("Display the full hotpoint mission:");
+                DJI2MAV_INFO("param1: %f, param2: %f, param3: %f, param4: %f, "
+                        "lat: %f, lon: %f, alt: %f", m_data[0], m_data[1], 
                         m_data[2], m_data[3], m_data[4], m_data[5], m_data[6]);
-                printf("--- End of display ---\n\n");
+                DJI2MAV_INFO("--- End of display ---");
             }
 
 

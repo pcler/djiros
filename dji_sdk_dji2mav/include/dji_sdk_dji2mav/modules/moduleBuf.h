@@ -1,19 +1,17 @@
 /*****************************************************************************
  * @Brief     Module buf manager of the mavlink module. ROS-free and mav-free
- * @Version   0.2.2
+ * @Version   0.3.0
  * @Author    Chris Liu
  * @Created   2015/12/06
- * @Modified  2015/12/10
+ * @Modified  2015/12/29
  *****************************************************************************/
 
 #ifndef _MAV2DJI_MODULEBUF_H_
 #define _MAV2DJI_MODULEBUF_H_
 
 
-#include <iostream>
-#include <stdio.h>
-#include <string.h>
 #include <new>
+#include <string>
 #include <mutex>
 
 namespace dji2mav{
@@ -21,6 +19,9 @@ namespace dji2mav{
     class ModuleBuf {
         public:
             ModuleBuf(uint16_t bufSize) {
+                DJI2MAV_DEBUG("Going to construct ModuleBuf with bufSize " 
+                        "%u...", bufSize);
+
                 m_bufSize = bufSize;
                 m_head = 0;
                 m_bufUsedAmount = 0;
@@ -29,13 +30,12 @@ namespace dji2mav{
                     m_buf = new uint8_t[m_bufSize];
                     memset(m_buf, 0, sizeof(uint8_t) * m_bufSize);
                 } catch(std::bad_alloc& m) {
-                    std::cerr << "Failed to alloc memory for moduleBuf: "
-                            << "at line: " << __LINE__ << ", func: "
-                            << __func__ << ", file: " << __FILE__
-                            << std::endl;
-                    perror( m.what() );
+                    DJI2MAV_FATAL( "Failed to alloc memory for moduleBuf! "
+                            "Exception: %s!", m.what() );
                     exit(EXIT_FAILURE);
                 }
+
+                DJI2MAV_DEBUG("...finish constructing ModuleBuf.");
 
             }
 
@@ -72,17 +72,18 @@ namespace dji2mav{
              * @param   len : The length that is going to write to the buffer
              * @return  True if succeed or false if fail
              */
-            bool writeBuf(uint8_t *src, uint16_t len) {
+            bool writeBuf(const uint8_t *src, uint16_t len) {
 
                 if( m_bufUsedAmount + len > m_bufSize ) {
                     return false;
                 } else {
                     m_bufMutex.lock();
-                    if(len + m_head + m_bufUsedAmount < m_bufSize) {
-                        memcpy(m_buf + m_head + m_bufUsedAmount, src, len);
+                    uint16_t tail = (m_head + m_bufUsedAmount) % m_bufSize;
+                    if(len + tail < m_bufSize) {
+                        memcpy(m_buf + tail, src, len);
                     } else {
-                        uint16_t bSize = m_bufSize - m_head - m_bufUsedAmount;
-                        memcpy(m_buf + m_head + m_bufUsedAmount, src, bSize);
+                        uint16_t bSize = m_bufSize - tail;
+                        memcpy(m_buf + tail, src, bSize);
                         memcpy(m_buf, src + bSize, len - bSize);
                     }
                     m_bufUsedAmount += len;
@@ -121,12 +122,31 @@ namespace dji2mav{
             }
 
 
+            /*
+             * @brief Display the buffer contents. For debug use
+             */
             void display() {
-                printf("head: %u, used: %u, buf: ", m_head, m_bufUsedAmount);
+                DJI2MAV_INFO("In ModuleBuf head: %u, used: %u, buf: ", 
+                        m_head, m_bufUsedAmount);
                 for(int i = 0; i < m_bufSize; ++i) {
                     printf("%02x", m_buf[i]);
                 }
                 printf("\n");
+                DJI2MAV_INFO("--- End of display ---");
+            }
+
+
+            /**
+             * @brief Clear the buffer. Set used amount 0 but not head pointer
+             */
+            void clear() {
+                DJI2MAV_DEBUG("Going to clear the buffer with used amount "
+                        "%u...", m_bufUsedAmount);
+                m_bufMutex.lock();
+                m_bufUsedAmount = 0;
+                m_bufMutex.unlock();
+                DJI2MAV_DEBUG("...finish clearing the buffer. Head point to "
+                        "%u.", m_head);
             }
 
 

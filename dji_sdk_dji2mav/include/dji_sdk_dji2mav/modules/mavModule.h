@@ -1,54 +1,84 @@
 /*****************************************************************************
  * @Brief     Base class of dji2mav module. ROS-free and mav-depended
- * @Version   0.2.2
+ * @Version   0.3.0
  * @Author    Chris Liu
  * @Created   2015/12/06
- * @Modified  2015/12/11
+ * @Modified  2015/12/24
  *****************************************************************************/
 
 #ifndef _MAV2DJI_MAVMODULE_H_
 #define _MAV2DJI_MAVMODULE_H_
 
 
-#include "moduleBuf.h"
-
 #include <mavlink/common/mavlink.h>
-#include <iostream>
-#include <stdio.h>
 #include <new>
+#include <string>
+#include <pthread.h>
+
+#include "moduleBuf.h"
+#include "dji_sdk_dji2mav/mavHandler.h"
+#include "dji_sdk_dji2mav/log.h"
 
 namespace dji2mav{
 
     class MavModule {
 
         public:
-            MavModule(uint16_t bufSize) {
-                m_hdlr = MavHandler::getInstance();
+            /**
+             * @brief Constructor for base MavModule class
+             * @param handler : The reference of MavHandler Object
+             * @param name    : The string name of this module
+             * @param buf     : The buffer size of received message
+             */
+            MavModule(MavHandler &handler, std::string name, uint16_t bufSize) {
+                m_hdlr = &handler;
                 m_masterGcsIdx = -1;
+                m_name = name;
 
                 try {
-                    m_senderRecord = new int[m_hdlr->getMngListSize()];
-                    memset( m_senderRecord, 0, 
-                            m_hdlr->getMngListSize() * sizeof(int) );
+                    m_senderRecord = new int[m_hdlr->getMaxListSize()];
+                    //set all sender record to -1
+                    memset( m_senderRecord, 0xFF, 
+                            m_hdlr->getMaxListSize() * sizeof(int) );
                     m_moduleBuf = new ModuleBuf(bufSize);
                 } catch(std::bad_alloc& m) {
-                    std::cerr << "Failed to alloc memory for mavModule: " 
-                            << "at line: " << __LINE__ << ", func: " 
-                            << __func__ << ", file: " << __FILE__ 
-                            << std::endl;
-                    perror( m.what() );
+                    DJI2MAV_FATAL( "Failed to allocate memory for mavModule! " 
+                            "Exception: %s!", m.what() );
                     exit(EXIT_FAILURE);
                 }
 
+                DJI2MAV_DEBUG("Construct base MavModule.");
             }
 
 
             virtual ~MavModule() {
+                DJI2MAV_DEBUG("Going to destruct base MavModule...");
                 if(NULL != m_senderRecord) {
                     delete []m_senderRecord;
                     m_senderRecord = NULL;
                 }
+                if(NULL != m_moduleBuf)
+                    delete m_moduleBuf;
                 m_hdlr = NULL;
+                DJI2MAV_DEBUG("...finish destructing base Mavmodule.");
+            }
+
+
+            /**
+             * @brief  Get the name of module
+             * @return The name of module
+             */
+            inline std::string getName() {
+                return m_name;
+            }
+
+
+            /**
+             * @brief  Get the sysid of this device
+             * @return The sysid of this device
+             */
+            inline uint8_t getMySysid() {
+                return m_hdlr->getMySysid();
             }
 
 
@@ -63,7 +93,7 @@ namespace dji2mav{
 
             /**
              * @brief  Get the sender index of master GCS
-             * @return The sender index of master GCS or -2 for no master
+             * @return SenderIdx of master, -2 for no master or -1 for no sender
              */
             int getMasterGcsSenderIdx() {
                 if(-1 == m_masterGcsIdx)
@@ -80,12 +110,13 @@ namespace dji2mav{
              */
             bool setMasterGcsIdx(uint16_t gcsIdx) {
                 if( !activateSender(gcsIdx) ) {
-                    printf("Fail to set master GCS to #%u\n", gcsIdx);
+                    DJI2MAV_ERROR("Fail to set master GCS to #%u because it " 
+                            "is not activated", gcsIdx);
                     return false;
                 }
                 if(-1 != m_masterGcsIdx) {
-                    //TODO: m_hdlr->unregister(m_senderRecord[m_masterGcsIdx]);
-                    m_senderRecord[m_masterGcsIdx] = -1;
+                    DJI2MAV_INFO("Switch master GCS from #%u to #%u.", 
+                            m_masterGcsIdx, gcsIdx);
                 }
                 //at last, turn on master mode
                 m_masterGcsIdx = gcsIdx;
@@ -121,11 +152,12 @@ namespace dji2mav{
              */
             bool employGcsSender(uint16_t gcsIdx) {
                 if( !activateSender(gcsIdx) ) {
-                    printf("Fail to employ a sender for GCS #%u\n", gcsIdx);
+                    DJI2MAV_ERROR("Fail to employ a sender for GCS #%u!", gcsIdx);
                     return false;
                 }
                 //turn off master mode
                 m_masterGcsIdx = -1;
+                DJI2MAV_DEBUG("Succeed in employing sender for GCS #%u.", gcsIdx);
                 return true;
             }
 
@@ -137,19 +169,22 @@ namespace dji2mav{
              */
             bool activateSender(uint16_t gcsIdx) {
                 if( !m_hdlr->isValidMngIdx(gcsIdx) ) {
-                    printf("Invalid GCS index: %u\n", gcsIdx);
+                    DJI2MAV_ERROR("Fail to activate sender for invalid GCS " 
+                            "index %u!", gcsIdx);
                     return false;
                 }
                 int sender = m_senderRecord[gcsIdx];
-                if( !m_hdlr->isValidIdx(gcsIdx, sender) ) {
+                if( -1 == sender ) {
                     sender = m_hdlr->registerSender(gcsIdx);
-                    if(-1 == sender) {
-                        printf("Fail to register sender for GCS #%u\n", 
+                    if(0 > sender) {
+                        DJI2MAV_ERROR("Fail to register sender for GCS #%u!", 
                                 gcsIdx);
                         return false;
                     }
+                    m_senderRecord[gcsIdx] = sender;
                 }
-                m_senderRecord[gcsIdx] = sender;
+                DJI2MAV_DEBUG("Succeed in activating sender with index %u for " 
+                        "GCS #%u.", m_senderRecord[gcsIdx], gcsIdx);
                 return true;
             }
 
@@ -161,11 +196,40 @@ namespace dji2mav{
              * @return True if succeed or false if fail
              */
             bool sendMsgToGcs(uint16_t gcsIdx, mavlink_message_t& msg) {
-                //TODO: move valid check to handler
-                bool ret = m_hdlr->sendEncodedMsg(gcsIdx, m_senderRecord[gcsIdx], &msg);
-                if(false == ret)
-                    printf("Cannot send message to GCS #%u\n", gcsIdx);
+                if(0 > m_senderRecord[gcsIdx]) {
+                    DJI2MAV_ERROR("Fail to send message to GCS #%u because no " 
+                            "sender is employed for it!", gcsIdx);
+                    return false;
+                }
+                bool ret = m_hdlr->sendEncodedMsgToMng(gcsIdx, 
+                        (uint16_t)m_senderRecord[gcsIdx], msg);
+                if(ret) {
+                    DJI2MAV_TRACE("Succeed in sending message to GCS #%u " 
+                            "using sender with index %u.", gcsIdx, 
+                            m_senderRecord[gcsIdx]);
+                } else {
+                    DJI2MAV_ERROR("Fail to send message to GCS #%u!", gcsIdx);
+                }
                 return ret;
+            }
+
+
+            /**
+             * @brief  Send message to corresponding GCS with sysid
+             * @param  sysid : The sysid of target device
+             * @param  msg   : The reference of encoded mavlink message
+             * @return True if succeed or false if fail
+             */
+            bool sendMsgToSys(uint8_t sysid, mavlink_message_t& msg) {
+                int idx = m_hdlr->findMngIdx(sysid);
+                if( idx <= 0 || idx > m_hdlr->getMaxListSize() ) {
+                    DJI2MAV_ERROR("Fail to send message to GCS because no " 
+                            "valid index is matched sysid %u! Return value: " 
+                            "%d!", sysid, idx);
+                    return false;
+                }
+                //TODO: Cannot call sendEncodedMsgToSys for passing senderIdx
+                return sendMsgToGcs( (uint8_t)idx, msg);
             }
 
 
@@ -190,14 +254,14 @@ namespace dji2mav{
                     return sendMsgToMaster(msg);
                 } else {
                     bool ret = true;
-                    for(uint16_t i = 0; i < m_hdlr->getMngListSize(); ++i) {
-                        if( -1 != m_senderRecord[i] && !(ret &= 
-                                sendMsgToGcs(m_senderRecord[i], msg)) ) {
-                            printf("Fail to send message to GCS #%u\n", i);
+                    for(uint16_t i = 0; i < m_hdlr->getMaxListSize(); ++i) {
+                        if( -1 != m_senderRecord[i] && !sendMsgToGcs(i, msg) ) {
+                            DJI2MAV_ERROR("Fail to send message to GCS #%u!", i);
+                            ret = false;
                         }
                     }
                     if(!ret)
-                        printf("Fail to send the message to some GCS\n");
+                        DJI2MAV_ERROR("Fail to send the message to some GCS!");
                     return ret;
                 }
             }
@@ -208,7 +272,8 @@ namespace dji2mav{
              * @param  srcMsg : The source of message
              * @return True if succeed or false if fail
              */
-            inline bool pushMsg(mavlink_message_t& srcMsg) {
+            inline bool pushMsg(uint16_t gcsIdx, 
+                    const mavlink_message_t &srcMsg) {
 
                 return m_moduleBuf->writeBuf( (uint8_t*)&srcMsg, 
                         sizeof(mavlink_message_t) );
@@ -221,7 +286,7 @@ namespace dji2mav{
              * @param  destMsg : The destination of message
              * @return True if succeed or false if fail
              */
-            inline bool pullMsg(mavlink_message_t& destMsg) {
+            inline bool pullMsg(mavlink_message_t &destMsg) {
 
                 return m_moduleBuf->readBuf( (uint8_t*)&destMsg, 
                         sizeof(mavlink_message_t) );
@@ -230,12 +295,20 @@ namespace dji2mav{
 
 
             /**
+             * @brief Clear buffer content
+             */
+            inline void clearBuf() {
+                m_moduleBuf->clear();
+            }
+
+
+            /**
              * @brief  Run a thread for the module
              * @return True if succeed to create the thread or false if fail
              */
             bool run() {
-                int ret = pthread_create(&m_tid, NULL, thread_call, (
-                        void*)this);
+                int ret = pthread_create( &m_tid, NULL, thread_call, 
+                        (void*)this );
                 if(0 != ret) {
                     printf("Fail to create thread for the module.\n");
                     return false;
@@ -249,25 +322,54 @@ namespace dji2mav{
              * @param param : The pointer to the module object
              */
             static void* thread_call(void* param) {
-                ( (MavModule*)param )->deliverMsg();
+                mavlink_message_t msg;
+                while(true) {
+                    //call passivelyReceive(msg) inside helper
+                    ( (MavModule*)param )->receiveHelper(msg);
 
+                    ( (MavModule*)param )->activelySend();
+                }
             }
 
 
             /**
-             * @brief The message delivery function for the module. Pure virtual
+             * @brief The helper of thread passively reveive
+             * @param msg : A reference of message type that is used to recv
              */
-            virtual void deliverMsg() = 0;
+            void receiveHelper(mavlink_message_t &msg) {
+                if( pullMsg(msg) ) {
+                    if( -1 != m_masterGcsIdx && msg.sysid != 
+                            m_hdlr->findMngSysid(m_masterGcsIdx) ) {
+                        return;
+                    }
+                    passivelyReceive(msg);
+                }
+            }
+
+
+            /**
+             * @brief Handle the received messages process for the module
+             * @param msg : The reference of received message
+             */
+            virtual void passivelyReceive(mavlink_message_t &msg) = 0;
+
+
+            /**
+             * @brief Handle the messages sending process for the module
+             */
+            virtual void activelySend() = 0;
 
 
         private:
             int* m_senderRecord;
-            int m_masterGcsIdx;
             ModuleBuf* m_moduleBuf;
+            int m_masterGcsIdx;
+            uint8_t m_masterSysid;
 
             MavHandler* m_hdlr;
 
             pthread_t m_tid;
+            std::string m_name;
 
     };
 
